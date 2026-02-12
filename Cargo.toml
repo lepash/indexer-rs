@@ -8,4 +8,7 @@ dotenv = "0.15.0"
 json = "0.12.4"
 reqwest = { version = "0.13.1", features = ["json"] }
 serde_json = "1.0.149"
+sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio", "runtime-tokio-rustls", "chrono"] }
 tokio = { version = "^1.49.0", features = ["full"] }
+tungstenite = "0.28.0"
+chrono = "0.4.43"
