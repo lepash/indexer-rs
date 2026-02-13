@@ -12,3 +12,4 @@ sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio", "runtime-to
 tokio = { version = "^1.49.0", features = ["full"] }
 tungstenite = "0.28.0"
 chrono = "0.4.43"
+thiserror = "2.0.18"

@@ -43,3 +43,4 @@ async fn insert_transfer(pool: &sqlx::PgPool, transaction_hash: &str, block_numb
 
     Ok(())
 }
+
