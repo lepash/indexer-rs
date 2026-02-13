@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let database_url = env::var("DATABASE_URL") 
         .expect("DATABASE_URL must be set in .env file"); 
     
-    let indexer_rs = Indexer::new(api_key, database_url);
+    let indexer_rs = Indexer::new(api_key, &database_url).await;
 
     Ok(())
 }
