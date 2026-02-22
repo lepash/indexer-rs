@@ -13,3 +13,4 @@ tokio = { version = "^1.49.0", features = ["full"] }
 tungstenite = "0.28.0"
 chrono = "0.4.43"
 thiserror = "2.0.18"
+anyhow = "1.0.102"

@@ -12,8 +12,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("INFURA_API_KEY must be set in .env file");
     let database_url = env::var("DATABASE_URL") 
         .expect("DATABASE_URL must be set in .env file"); 
+    let poll_interval = env::var("POLL_INTERVAL")
+        .unwrap_or_else(|_| "5000".to_string()).parse::<u64>().expect("POLL_INTERVAL must be a valid integer");
     
-    let indexer_rs = Indexer::new(api_key, &database_url).await;
+    let indexer_rs = Indexer::new(api_key, &database_url, poll_interval).await;
+
+    indexer_rs.run().await;
 
     Ok(())
 }

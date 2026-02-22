@@ -18,7 +18,8 @@ impl Db {
     pub async fn new(database_url: &str) -> Self {
         let pool = PgPoolOptions::new()
             .max_connections(5) 
-            .connect_lazy(database_url) 
+            .connect(database_url)
+            .await 
             .expect("Failed to create database pool");
         
         sqlx::query(
@@ -38,6 +39,15 @@ impl Db {
 
         Self { pool }
     }
+
+    async fn get_max_block(&self) -> Option<i64> { 
+        let (max_block,): (Option<i64>,) = sqlx::query_as("SELECT MAX(block_number) as max_block FROM native_currency_transfers") /* returns a row that contains a single column. (_,) represents a row with a single column */
+            .fetch_one(&self.pool)
+            .await
+            .expect("Failed to fetch max block");
+
+        return max_block;
+     }
     
     pub async fn insert_transfer(&self, tx_hash: &str, block_number: i64, timestamp: chrono::DateTime<chrono::Utc>, txfrom: &str, txto: &str, value: &str, gas_price: &str, gas: &str) -> Result<(), sqlx::Error> { 
         sqlx::query( "INSERT INTO native_currency_transfers (tx_hash, block_number, timestamp, txfrom, txto, value, gas_price, gas) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (tx_hash) DO NOTHING" ) 
@@ -71,6 +81,7 @@ impl Db {
             .await?; 
 
         Ok(transfer)
-} 
+    } 
+
 }
 
