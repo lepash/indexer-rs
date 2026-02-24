@@ -31,7 +31,9 @@ impl Db {
                 txto TEXT NOT NULL, 
                 value NUMERIC NOT NULL,
                 gas_price NUMERIC,
-                gas NUMERIC
+                gas NUMERIC,
+                max_fee_per_gas NUMERIC,
+                max_priority_fee_per_gas NUMERIC
         )")
         .execute(&pool) 
         .await
@@ -49,8 +51,9 @@ impl Db {
         return max_block;
      }
     
-    pub async fn insert_transfer(&self, tx_hash: &str, block_number: i64, timestamp: chrono::DateTime<chrono::Utc>, txfrom: &str, txto: &str, value: &str, gas_price: &str, gas: &str) -> Result<(), sqlx::Error> { 
-        sqlx::query( "INSERT INTO native_currency_transfers (tx_hash, block_number, timestamp, txfrom, txto, value, gas_price, gas) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (tx_hash) DO NOTHING" ) 
+    /*Note for myself in the future: i64 wastes one bit for the sign since block numbers, gas, fees, etc can't be negative but sqlx doesn't natively support it */
+    pub async fn insert_transfer(&self, tx_hash: &str, block_number: i64, timestamp: chrono::DateTime<chrono::Utc>, txfrom: &str, txto: &str, value: i64, gas_price: i64, gas: i64, max_fee_per_gas: i64, max_priority_fee_per_gas: i64) -> Result<(), sqlx::Error> { 
+        sqlx::query( "INSERT INTO native_currency_transfers (tx_hash, block_number, timestamp, txfrom, txto, value, gas_price, gas, max_fee_per_gas, max_priority_fee_per_gas) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (tx_hash) DO NOTHING" ) 
             .bind(tx_hash) 
             .bind(block_number) 
             .bind(timestamp) 
@@ -59,6 +62,8 @@ impl Db {
             .bind(value) 
             .bind(gas_price) 
             .bind(gas)  
+            .bind(max_fee_per_gas)
+            .bind(max_priority_fee_per_gas)
             .execute(&self.pool) 
             .await?; 
 
@@ -83,5 +88,12 @@ impl Db {
         Ok(transfer)
     } 
 
+    pub async fn reset_db(&self) -> Result<(), sqlx::Error> { 
+        sqlx::query("DROP TABLE IF EXISTS native_currency_transfers") 
+            .execute(&self.pool) 
+            .await?; 
+
+        Ok(())
+    }
 }
 

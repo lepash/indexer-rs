@@ -1,9 +1,8 @@
-use core::time;
 use anyhow::{Ok, Result};
 use chrono::DateTime;
+use json::from;
 use serde_json::json;
 use sqlx::{Value, any};
-use tungstenite::util;
 use crate::db;
 use crate::utils;
 
@@ -29,7 +28,7 @@ impl<'a> Indexer<'a> {
     pub async fn run(&self) {
         // loop {
             let block = self.fetch_new_block().await.unwrap();
-            let transfers = self.extract_transfers(&block).unwrap();
+            let transfers = self.extract_transfers(&block).await.unwrap();
 
         //     tokio::time::sleep(tokio::time::Duration::from_millis(self.poll_interval)).await;
         // }
@@ -49,7 +48,6 @@ impl<'a> Indexer<'a> {
     }
 
     async fn rpc_call(&self, body: &serde_json::Value) -> anyhow::Result<serde_json::Value> {
-        println!("Calling");
         let url = format!("https://mainnet.infura.io/v3/{}", self.api_key);
         let resp = self.client.post(url)
             .json(&body)
@@ -72,7 +70,7 @@ impl<'a> Indexer<'a> {
         Ok(resp_json)
     }
 
-    pub fn extract_transfers(&self, block: &serde_json::Value) -> anyhow::Result<()> {
+    pub async fn extract_transfers(&self, block: &serde_json::Value) -> anyhow::Result<()> {
         let timestamp = block["result"]["timestamp"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("No timestamp found in block data"))?;
@@ -87,31 +85,42 @@ impl<'a> Indexer<'a> {
     
         for tx in transactions {
             let to_address = tx["to"].as_str().unwrap_or("");
-            print!("Checking address: {} - ", to_address);
+            let from_address = tx["from"].as_str().unwrap_or("");
+
+            if self.is_eoa(to_address).await? && self.is_eoa(from_address).await? {
+                print!("{:?}", tx);
+                self.parse_transaction(&tx, dt).await?;
+            }
+
         }
         
         Ok(())
     }
 
-    async fn parse_transaction(&self, transaction: &serde_json::Value) -> anyhow::Result<()> {
+    async fn parse_transaction(&self, transaction: &serde_json::Value, timestamp: chrono::DateTime<chrono::Utc>) -> anyhow::Result<()> {
         let tx_hash = transaction["hash"].as_str().unwrap_or("");
-        let block_number = transaction["blockNumber"].as_str().unwrap_or("0").parse::<i64>().unwrap_or(0);
-        let timestamp = transaction["timestamp"].as_str().unwrap_or("0").parse::<i64>().unwrap_or(0);
+        let block_number = utils::parse_hex(transaction["blockNumber"].as_str().unwrap_or("0"))?;
         let txfrom = transaction["from"].as_str().unwrap_or("");
         let txto = transaction["to"].as_str().unwrap_or("");
-        let value = transaction["value"].as_str().unwrap_or("0");
-        let gas_price = transaction["gasPrice"].as_str().unwrap_or("0");
-        let gas = transaction["gas"].as_str().unwrap_or("0");
+        let value = utils::parse_hex(transaction["value"].as_str().unwrap_or("0"))?;
+        let gas_price = utils::parse_hex(transaction["gasPrice"].as_str().unwrap_or("0"))?;
+        let gas = utils::parse_hex(transaction["gas"].as_str().unwrap_or("0"))?;
+        let maxFeePerGas = utils::parse_hex(transaction["maxFeePerGas"].as_str().unwrap_or("0"))?;
+        let maxPriorityFeePerGas = utils::parse_hex(transaction["maxPriorityFeePerGas"].as_str().unwrap_or("0"))?;
 
+
+        println!("Parsed transaction: hash={}, from={}, to={}, value={}, gas_price={}, gas={}, maxFeePerGas={}, maxPriorityFeePerGas={}", tx_hash, txfrom, txto, value, gas_price, gas, maxFeePerGas, maxPriorityFeePerGas);
         self.db.insert_transfer(
             tx_hash, 
             block_number, 
-            chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(timestamp, 0), chrono::Utc), 
+            timestamp, 
             txfrom, 
             txto,
             value,
             gas_price, 
-            gas
+            gas,
+            maxFeePerGas,
+            maxPriorityFeePerGas
         )
             .await?;
 
