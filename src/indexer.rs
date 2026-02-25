@@ -1,15 +1,13 @@
 use anyhow::{Ok, Result};
 use chrono::DateTime;
-use json::from;
 use serde_json::json;
-use sqlx::{Value, any};
 use crate::db;
 use crate::utils;
 
 pub struct Indexer<'a> {
     api_key: String,
     database_url: &'a str,
-    db: db::Db,
+    pub db: db::Db,
     client: reqwest::Client,
     poll_interval: u64,
 }
@@ -126,8 +124,8 @@ impl<'a> Indexer<'a> {
 
         Ok(())
     }
-}
 
+}
 
 
 

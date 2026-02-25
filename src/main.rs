@@ -7,7 +7,8 @@ use indexer_rs::indexer::Indexer;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok(); 
-
+    env_logger::init();
+    
     let api_key = env::var("INFURA_API_KEY")
         .expect("INFURA_API_KEY must be set in .env file");
     let database_url = env::var("DATABASE_URL") 
@@ -17,7 +18,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let indexer_rs = Indexer::new(api_key, &database_url, poll_interval).await;
 
-    indexer_rs.run().await;
+    // indexer_rs.run().await;
+    let transfers = indexer_rs.db.select_all_transfers().await?;
+    println!("Found {:?} transfers", transfers);
 
     Ok(())
 }

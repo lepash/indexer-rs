@@ -1,13 +1,17 @@
 use sqlx::postgres::PgPoolOptions;
 
-#[derive(sqlx::FromRow)] 
+#[derive(sqlx::FromRow, Debug)] 
 pub struct NativeCurrencyTransfer { 
-    pub transaction_hash: String, 
+    pub tx_hash: String, 
     pub block_number: i64, 
     pub timestamp: chrono::DateTime<chrono::Utc>, 
     pub txfrom: String, 
     pub txto: String, 
-    pub value: String, 
+    pub value: i64, 
+    pub gas_price: i64,
+    pub gas: i64,
+    pub max_fee_per_gas: i64,
+    pub max_priority_fee_per_gas: i64,
 }
 
 pub struct Db { 
@@ -29,11 +33,11 @@ impl Db {
                 timestamp TIMESTAMPTZ NOT NULL, 
                 txfrom TEXT NOT NULL, 
                 txto TEXT NOT NULL, 
-                value NUMERIC NOT NULL,
-                gas_price NUMERIC,
-                gas NUMERIC,
-                max_fee_per_gas NUMERIC,
-                max_priority_fee_per_gas NUMERIC
+                value INT8 NOT NULL,
+                gas_price INT8,
+                gas INT8,
+                max_fee_per_gas INT8,
+                max_priority_fee_per_gas INT8
         )")
         .execute(&pool) 
         .await
@@ -68,6 +72,14 @@ impl Db {
             .await?; 
 
         Ok(())
+    }
+
+    pub async fn select_all_transfers(&self) -> Result<Vec<NativeCurrencyTransfer>, sqlx::Error> { 
+        let transfers = sqlx::query_as::<_, NativeCurrencyTransfer>("SELECT * FROM native_currency_transfers") 
+            .fetch_all(&self.pool) 
+            .await?;
+
+        Ok(transfers)
     }
 
     pub async fn read_transfers_from_address(&self, txfrom: &str) -> Result<Vec<NativeCurrencyTransfer>, sqlx::Error> { 
