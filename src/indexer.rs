@@ -1,26 +1,25 @@
-use anyhow::{Ok, Result};
 use chrono::DateTime;
 use serde_json::json;
 use crate::db;
 use crate::utils;
 
-pub struct Indexer<'a> {
+pub struct Indexer {
     api_key: String,
-    database_url: &'a str,
     pub db: db::Db,
     client: reqwest::Client,
     poll_interval: u64,
 }
 
-impl<'a> Indexer<'a> {
-    pub async fn new(api_key: String, database_url: &'a str, poll_interval: u64) -> Self {
-        Self { 
+impl Indexer {
+    pub async fn new(api_key: String, database_url: String, poll_interval: u64) -> anyhow::Result<Self> {
+        Ok(
+            Self { 
             api_key, 
-            database_url, 
-            db: db::Db::new(database_url).await, 
+            db: db::Db::new(&database_url).await?, 
             client: reqwest::Client::new(),
             poll_interval,
         }
+    )
     }
 
     pub async fn run(&self) {
@@ -89,7 +88,6 @@ impl<'a> Indexer<'a> {
                 print!("{:?}", tx);
                 self.parse_transaction(&tx, dt).await?;
             }
-
         }
         
         Ok(())
