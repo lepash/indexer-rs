@@ -108,29 +108,31 @@ impl Indexer {
         let block_number = utils::parse_hex(block["result"]["number"].as_str().unwrap_or("0"))?;
         
         for tx in transactions {
-            let to_address = tx["to"].as_str().unwrap_or("");
-            let from_address = tx["from"].as_str().unwrap_or("");
-
-            if self.is_eoa(to_address).await? && self.is_eoa(from_address).await? {
-                // print!("{:?}", tx);
-                self.parse_transaction(&tx, dt).await?;
+            let is_native_eth_transfer = self.parse_transaction(&tx, dt).await?;
+            if !is_native_eth_transfer {
+                println!("Skipped non-native transfer transaction");
             }
         }
         
         Ok(block_number)
     }
 
-    async fn parse_transaction(&self, transaction: &serde_json::Value, timestamp: chrono::DateTime<chrono::Utc>) -> anyhow::Result<()> {
-        let tx_hash = transaction["hash"].as_str().unwrap_or("");
-        let block_number = utils::parse_hex(transaction["blockNumber"].as_str().unwrap_or("0"))?;
+    async fn parse_transaction(&self, transaction: &serde_json::Value, timestamp: chrono::DateTime<chrono::Utc>) -> anyhow::Result<bool> {
+        let value = utils::parse_hex(transaction["value"].as_str().unwrap_or("0"))?;
         let txfrom = transaction["from"].as_str().unwrap_or("");
         let txto = transaction["to"].as_str().unwrap_or("");
-        let value = utils::parse_hex(transaction["value"].as_str().unwrap_or("0"))?;
+       
+       /*Early stop if not a native ETH transfer */
+        if value == BigDecimal::from(0) || !self.is_eoa(txto).await? || !self.is_eoa(txfrom).await? {
+            return Ok(false);
+        }
+
+        let tx_hash = transaction["hash"].as_str().unwrap_or("");
+        let block_number = utils::parse_hex(transaction["blockNumber"].as_str().unwrap_or("0"))?;
         let gas_price = utils::parse_hex(transaction["gasPrice"].as_str().unwrap_or("0"))?;
         let gas = utils::parse_hex(transaction["gas"].as_str().unwrap_or("0"))?;
         let max_fee_per_gas = utils::parse_hex(transaction["maxFeePerGas"].as_str().unwrap_or("0"))?;
         let max_priority_fee_per_gas = utils::parse_hex(transaction["maxPriorityFeePerGas"].as_str().unwrap_or("0"))?;
-
 
         println!("Parsed transaction: hash={}, from={}, to={}, value={}, gas_price={}, gas={}, maxFeePerGas={}, maxPriorityFeePerGas={}", tx_hash, txfrom, txto, value, gas_price, gas, max_fee_per_gas, max_priority_fee_per_gas);
         self.db.insert_transfer(
@@ -147,7 +149,7 @@ impl Indexer {
         )
             .await?;
 
-        Ok(())
+        Ok(true)
     }
 
 }
